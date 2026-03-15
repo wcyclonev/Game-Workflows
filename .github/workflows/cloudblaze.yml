@@ -1,0 +1,45 @@
+name: CloudBlaze Auto Start
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-start:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/Game-Auto-Scripts
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up WARP
+        uses: fscarmen/warp-on-actions@v1.4
+        with:
+          stack: dual        # Optional. Support [ ipv4, ipv6, dual ]. Default is dual.
+          mode: client
+
+      - name: Install dependencies
+        working-directory: scripts/Cloudblaze
+        run: pip install -r requirements.txt -q > /dev/null 2>&1
+
+      - name: Run script
+        working-directory: scripts/Cloudblaze
+        run: python main.py
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: scripts/Cloudblaze/screenshot/
+          if-no-files-found: ignore
+          retention-days: 7
