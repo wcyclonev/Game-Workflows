@@ -15,7 +15,7 @@ jobs:
       - name: Checkout private repo
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository_owner }}/Game-Auto-Scripts
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: scripts
 
