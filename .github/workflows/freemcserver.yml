@@ -1,9 +1,9 @@
 name: FreeMCServer Auto Renew
 
 on:
-  # 每天 UTC 4:00 运行（北京时间 12:00）
+  # 每 2 小时运行一次
   schedule:
-    - cron: '0 4 * * *'
+    - cron: '0 */2 * * *'
   # 手动触发
   workflow_dispatch:
 
