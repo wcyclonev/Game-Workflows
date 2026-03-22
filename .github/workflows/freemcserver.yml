@@ -55,6 +55,8 @@ jobs:
           FREEMCSERVER_ID: ${{ secrets.FREEMCSERVER_ID }}
           FREEMCSERVER_SOCKS_PROXY: ${{ secrets.FREEMCSERVER_SOCKS_PROXY }}
           USE_GOST_PROXY: ${{ secrets.FREEMCSERVER_SOCKS_PROXY != '' && 'true' || 'false' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py
       
@@ -66,4 +68,5 @@ jobs:
           path: |
             scripts/Freemcserver/screenshots/
             scripts/Freemcserver/server_info.json
+            scripts/Freemcserver/server_info_after_renew.json
           retention-days: 7
