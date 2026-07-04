@@ -18,6 +18,12 @@ jobs:
           repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: scripts
+          
+      - name: Set up WARP
+        uses: fscarmen/warp-on-actions@v1.4
+        with:
+          stack: dual
+          mode: client
 
       - name: Setup Python
         uses: actions/setup-python@v5
