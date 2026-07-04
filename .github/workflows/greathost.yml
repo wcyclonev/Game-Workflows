@@ -2,8 +2,7 @@ name: Greathost Auto Renew
 
 on:
   schedule:
-    - cron: '0 4 * * *'    # 中午12点 (UTC+8)
-    - cron: '0 15 * * *'  # 晚上23:00 (UTC+8)
+    - cron: '0 */4 * * *'  # 每4小时一次
   workflow_dispatch:  # 手动触发
 
 jobs:
