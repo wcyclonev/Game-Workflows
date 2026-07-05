@@ -1,14 +1,15 @@
 name: Axenthost Auto Claim
 
 on:
-  # schedule:
+  schedule:
     # 每小时的第5分钟运行（UTC时间）
-    # - cron: '5 * * * *'
+    - cron: '5 * * * *'
   workflow_dispatch:  # 支持手动触发
 
 jobs:
   claim:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout private repo
@@ -22,9 +23,47 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install gost (proxy converter)
+        run: |
+          wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+          gunzip gost-linux-amd64-2.11.5.gz
+          chmod +x gost-linux-amd64-2.11.5
+          sudo mv gost-linux-amd64-2.11.5 /usr/local/bin/gost
+
+      - name: Start gost proxy (if proxy configured)
+        env:
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+        if: ${{ env.SOCKS_PROXY_URL != '' }}
+        run: |
+          # 启动 gost 作为后台进程，将带认证的 SOCKS5 转换为本地无认证代理
+          nohup gost -L=socks5://127.0.0.1:1080 -F=$SOCKS_PROXY_URL > /tmp/gost.log 2>&1 &
+          sleep 3
+          echo "Gost proxy started on 127.0.0.1:1080"
+          # 验证 gost 是否运行
+          ps aux | grep gost || echo "Warning: gost may not be running"
+
+      - name: Test proxy connection (if proxy configured)
+        env:
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+        if: ${{ env.SOCKS_PROXY_URL != '' }}
+        run: |
+          echo "Testing proxy connection..."
+          # 测试代理连通性
+          if curl -x socks5://127.0.0.1:1080 --connect-timeout 10 -s https://httpbin.org/ip > /tmp/proxy_test.json; then
+            echo "✅ Proxy connection successful"
+            echo "Proxy IP: $(cat /tmp/proxy_test.json | grep -o '"origin":"[^"]*' | cut -d'"' -f4)"
+          else
+            echo "❌ Proxy connection failed"
+            echo "Gost log:"
+            cat /tmp/gost.log || echo "No gost log found"
+            exit 1
+          fi
       
       - name: Install dependencies
         working-directory: scripts/Axenthost
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pip install -r requirements.txt -q > /dev/null 2>&1
       
       - name: Run claim script
@@ -33,6 +72,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+          USE_GOST_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py
       
       - name: Upload server status artifacts
