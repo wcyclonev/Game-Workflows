@@ -1,16 +1,16 @@
-name: Zampto Auto Renew
+name: Katabump Auto Renew
 
 on:
   schedule:
-    # 北京时间中午12点 = UTC 04:00
+    # 每天 UTC 时间 4:00 运行（北京时间 12:00）
     - cron: '0 4 * * *'
-  workflow_dispatch:
+  workflow_dispatch:  # 支持手动触发
 
 jobs:
   renew:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
+    
     steps:
       - name: Checkout private repo
         uses: actions/checkout@v4
@@ -18,12 +18,12 @@ jobs:
           repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: scripts
-
+      
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
+      
       - name: Install gost (proxy converter)
         run: |
           wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
@@ -42,28 +42,32 @@ jobs:
           echo "Gost proxy started on 127.0.0.1:1080"
           # 验证 gost 是否运行
           ps aux | grep gost || echo "Warning: gost may not be running"
-
+      
       - name: Install dependencies
-        working-directory: scripts/Zampto
+        working-directory: scripts/Katabump
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pip install -r requirements.txt -q > /dev/null 2>&1
-
-      - name: Run script
-        working-directory: scripts/Zampto
+      
+      - name: Run renew script
+        working-directory: scripts/Katabump
         env:
+          KATABUMP_MAIL: ${{ secrets.KATABUMP_MAIL }}
+          KATABUMP_PASS: ${{ secrets.KATABUMP_PASS }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
           USE_GOST_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py
-
+      
       - name: Upload screenshots
-        if: always()
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: screenshots
-          path: scripts/Zampto/screenshots/
+          path: scripts/Katabump/screenshots/
           if-no-files-found: ignore
           retention-days: 7
