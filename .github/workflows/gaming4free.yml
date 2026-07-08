@@ -38,11 +38,11 @@ jobs:
 
       - name: Start gost proxy (if proxy configured)
         env:
-          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
-        if: ${{ env.SOCKS_PROXY_URL != '' }}
+          G4F_SOCKS_PROXY: ${{ secrets.G4F_SOCKS_PROXY }}
+        if: ${{ env.G4F_SOCKS_PROXY != '' }}
         run: |
           # 启动 gost 作为后台进程，将带认证的 SOCKS5 转换为本地无认证代理
-          nohup gost -L=socks5://127.0.0.1:1080 -F=$SOCKS_PROXY_URL > /tmp/gost.log 2>&1 &
+          nohup gost -L=socks5://127.0.0.1:1080 -F=$G4F_SOCKS_PROXY > /tmp/gost.log 2>&1 &
           sleep 3
           echo "Gost proxy started on 127.0.0.1:1080"
           # 验证 gost 是否运行
@@ -59,8 +59,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
-          USE_GOST_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          G4F_SOCKS_PROXY: ${{ secrets.G4F_SOCKS_PROXY }}
+          USE_GOST_PROXY: ${{ secrets.G4F_SOCKS_PROXY != '' && 'true' || 'false' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_ACTIONS: 'true'
           USE_XVFB: 'true'
