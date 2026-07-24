@@ -36,17 +36,31 @@ jobs:
           pip install -r requirements.txt
           seleniumbase install chromedriver
 
-      - name: Setup proxy (sing-box)
+      - name: Setup proxy (gost)
         continue-on-error: true
         env:
           NODE_LINK: ${{ secrets.NODE_LINK }}
         run: |
-          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
-          echo "Waiting 10 seconds for proxy to fully start..."
-          sleep 10
-          if pgrep -f sing-box > /dev/null; then
-            echo "sing-box is running"
-            netstat -tlnp | grep 1080 || echo "Port 1080 not found"
+          if [ -n "$NODE_LINK" ]; then
+            echo "Setting up gost proxy..."
+            wget -O gost.gz https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+            gunzip gost.gz
+            chmod +x gost
+            
+            # 启动 gost 代理
+            nohup ./gost -L=:1080 -F="$NODE_LINK" > gost.log 2>&1 &
+            
+            echo "Waiting 10 seconds for proxy to fully start..."
+            sleep 10
+            
+            if pgrep -f gost > /dev/null; then
+              echo "gost is running"
+              netstat -tlnp | grep 1080 || echo "Port 1080 not found"
+            else
+              echo "Warning: gost may not be running"
+            fi
+          else
+            echo "NODE_LINK not set, skipping proxy setup"
           fi
 
       - name: Run login script
@@ -72,8 +86,8 @@ jobs:
       - name: Cleanup processes
         if: always()
         run: |
-          pkill -f sing-box || true
+          pkill -f gost || true
           pkill -f chromedriver || true
           pkill -f chrome || true
           pkill -f Xvfb || true
-          rm -f sing-box sing-box-config.json sing-box.log
+          rm -f gost gost.log
