@@ -42,6 +42,12 @@ jobs:
           NODE_LINK: ${{ secrets.NODE_LINK }}
         run: |
           bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
+          echo "Waiting 10 seconds for proxy to fully start..."
+          sleep 10
+          if pgrep -f sing-box > /dev/null; then
+            echo "sing-box is running"
+            netstat -tlnp | grep 1080 || echo "Port 1080 not found"
+          fi
 
       - name: Run login script
         working-directory: scripts/Luneshost
@@ -50,9 +56,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           IS_PROXY: ${{ secrets.NODE_LINK != '' && 'true' || 'false' }}
           PROXY_SERVER: "http://127.0.0.1:1080"
-          HEADLESS: "true"
+          HEADLESS: "false"
         run: |
-          xvfb-run --auto-servernum python main.py
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
