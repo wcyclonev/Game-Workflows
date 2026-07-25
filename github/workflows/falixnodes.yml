@@ -1,0 +1,49 @@
+name: FalixNodes Auto Keepalive
+
+on:
+  # 每 1 小时运行一次
+  # schedule:
+  #   - cron: '10 * * * *'
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        working-directory: scripts/Falixnodes
+        run: pip install -r requirements.txt -q > /dev/null 2>&1
+      
+      - name: Run keepalive script
+        working-directory: scripts/Falixnodes
+        env:
+          FALIX_EMAIL: ${{ secrets.FALIX_EMAIL }}
+          FALIX_PASSWORD: ${{ secrets.FALIX_PASSWORD }}
+          FALIX_SERVER_ID: ${{ secrets.FALIX_SERVER_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python main.py
+      
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: falixnodes-results
+          path: |
+            scripts/Falixnodes/screenshots/
+          retention-days: 7

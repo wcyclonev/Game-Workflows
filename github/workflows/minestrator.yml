@@ -1,0 +1,106 @@
+name: MineStrator Auto Keepalive
+
+on:
+  # schedule:
+  #   # 每2小时运行一次
+  #   - cron: '0 */2 * * *'
+  workflow_dispatch:  # 支持手动触发
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Gost Proxy
+        env:
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+        run: |
+          # 如果没有环境变量，从 main.py 中读取默认代理
+          if [ -z "$SOCKS_PROXY_URL" ]; then
+            echo "ℹ️ 未配置环境变量，尝试读取代码中的默认代理..."
+            cd scripts/Minestrator
+            DEFAULT_PROXY=$(grep 'SOCKS_PROXY_URL.*or' main.py | sed 's/.*or "\([^"]*\)".*/\1/')
+            
+            if [ -n "$DEFAULT_PROXY" ] && [ "$DEFAULT_PROXY" != "" ]; then
+              SOCKS_PROXY_URL="$DEFAULT_PROXY"
+              echo "✅ 使用代码中的默认代理: ${SOCKS_PROXY_URL%%:*}://***"
+              cd ../..
+            else
+              echo "⚠️ 未找到默认代理，跳过 Gost 设置"
+              exit 0
+            fi
+          else
+            echo "🌐 使用环境变量代理: ${SOCKS_PROXY_URL%%:*}://***"
+          fi
+          
+          # 安装 Gost
+          wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+          gunzip gost-linux-amd64-2.11.5.gz
+          sudo mv gost-linux-amd64-2.11.5 /usr/local/bin/gost
+          sudo chmod +x /usr/local/bin/gost
+          
+          # 启动 Gost
+          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > gost.log 2>&1 &
+          sleep 5
+          
+          # 验证
+          if pgrep -x "gost" > /dev/null && netstat -tuln | grep -q ":1080 "; then
+            echo "✅ Gost 代理已启动"
+          else
+            echo "❌ Gost 启动失败"
+            cat gost.log 2>/dev/null
+            exit 1
+          fi
+          
+          # 测试代理连接
+          if curl -x socks5://127.0.0.1:1080 https://www.google.com -I --max-time 10 --silent --fail > /dev/null 2>&1; then
+            echo "✅ 代理连接测试成功"
+          else
+            echo "⚠️ 代理连接测试失败（可能是上游代理问题，继续执行）"
+          fi
+      
+      - name: Install dependencies
+        working-directory: scripts/Minestrator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip install -r requirements.txt -q > /dev/null 2>&1
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq xvfb > /dev/null 2>&1
+      
+      - name: Run restart script
+        working-directory: scripts/Minestrator
+        env:
+          # GitHub Secrets
+          USERNAME: ${{ secrets.MINESTRATOR_USERNAME }}
+          PASSWORD: ${{ secrets.MINESTRATOR_PASSWORD }}
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 固定配置
+          USE_GOST_PROXY: true
+          FORCE_HEADLESS: false
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
+      
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: restart-screenshots
+          path: scripts/Minestrator/*.png
+          retention-days: 30
+          if-no-files-found: ignore
