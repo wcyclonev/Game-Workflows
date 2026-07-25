@@ -1,0 +1,72 @@
+name: FreeMCServer Auto Renew
+
+on:
+  # 每 1 小时运行一次
+  schedule:
+    - cron: '5 * * * *'
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install gost (proxy converter)
+        run: |
+          wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+          gunzip gost-linux-amd64-2.11.5.gz
+          chmod +x gost-linux-amd64-2.11.5
+          sudo mv gost-linux-amd64-2.11.5 /usr/local/bin/gost
+      
+      - name: Start gost proxy (if proxy configured)
+        env:
+          FREEMCSERVER_SOCKS_PROXY: ${{ secrets.FREEMCSERVER_SOCKS_PROXY }}
+        if: ${{ env.FREEMCSERVER_SOCKS_PROXY != '' }}
+        run: |
+          # 启动 gost 作为后台进程，将带认证的 SOCKS5 转换为本地无认证代理
+          nohup gost -L=socks5://127.0.0.1:1080 -F=$FREEMCSERVER_SOCKS_PROXY > /tmp/gost.log 2>&1 &
+          sleep 3
+          echo "Gost proxy started on 127.0.0.1:1080"
+          # 验证 gost 是否运行
+          ps aux | grep gost || echo "Warning: gost may not be running"
+      
+      - name: Install dependencies
+        working-directory: scripts/Freemcserver
+        run: pip install -r requirements.txt -q > /dev/null 2>&1
+      
+      - name: Run renew script
+        working-directory: scripts/Freemcserver
+        env:
+          FREEMCSERVER_EMAIL: ${{ secrets.FREEMCSERVER_EMAIL }}
+          FREEMCSERVER_PASSWORD: ${{ secrets.FREEMCSERVER_PASSWORD }}
+          FREEMCSERVER_ID: ${{ secrets.FREEMCSERVER_ID }}
+          FREEMCSERVER_SOCKS_PROXY: ${{ secrets.FREEMCSERVER_SOCKS_PROXY }}
+          USE_GOST_PROXY: ${{ secrets.FREEMCSERVER_SOCKS_PROXY != '' && 'true' || 'false' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python main.py
+      
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freemcserver-results
+          path: |
+            scripts/Freemcserver/screenshots/
+            scripts/Freemcserver/server_info.json
+            scripts/Freemcserver/server_info_after_renew.json
+          retention-days: 7
