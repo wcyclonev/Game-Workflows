@@ -1,9 +1,9 @@
 name: Gaming4Free Auto Renew
 
 on:
-#  schedule:
-    # 每 1 小时执行一次（UTC 时间）
-#    - cron: '5 * * * *'
+  schedule:
+    # 北京时间中午12点 = UTC 04:00
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:
@@ -22,12 +22,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install system dependencies
+        working-directory: scripts/Gaming4free
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
+          pip install -r requirements.txt
+          seleniumbase install chromedriver
 
       - name: Install gost (proxy converter)
         run: |
@@ -41,30 +44,25 @@ jobs:
           G4F_SOCKS_PROXY: ${{ secrets.G4F_SOCKS_PROXY }}
         if: ${{ env.G4F_SOCKS_PROXY != '' }}
         run: |
-          # 启动 gost 作为后台进程，将带认证的 SOCKS5 转换为本地无认证代理
-          nohup gost -L=socks5://127.0.0.1:1080 -F=$G4F_SOCKS_PROXY > /tmp/gost.log 2>&1 &
-          sleep 3
+          # 启动 gost 作为后台进程，将 SOCKS5 节点转换为本地 HTTP 代理
+          nohup gost -L=:1080 -F="$G4F_SOCKS_PROXY" > /tmp/gost.log 2>&1 &
+          sleep 5
           echo "Gost proxy started on 127.0.0.1:1080"
           # 验证 gost 是否运行
           ps aux | grep gost || echo "Warning: gost may not be running"
-
-      - name: Install dependencies
-        working-directory: scripts/Gaming4free
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pip install -r requirements.txt -q > /dev/null 2>&1
+          netstat -tlnp | grep 1080 || echo "Port 1080 not found"
 
       - name: Run renewal script
         working-directory: scripts/Gaming4free
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          G4F_SOCKS_PROXY: ${{ secrets.G4F_SOCKS_PROXY }}
-          USE_GOST_PROXY: ${{ secrets.G4F_SOCKS_PROXY != '' && 'true' || 'false' }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_ACTIONS: 'true'
-          USE_XVFB: 'true'
-        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
+          IS_PROXY: ${{ secrets.G4F_SOCKS_PROXY != '' && 'true' || 'false' }}
+          PROXY_SERVER: "http://127.0.0.1:1080"
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
 
       - name: Upload screenshots
         if: always()
