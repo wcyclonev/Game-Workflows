@@ -2,8 +2,7 @@ name: Gaming4Free Auto Renew
 
 on:
   schedule:
-    # 北京时间中午12点 = UTC 04:00
-    - cron: '0 4 * * *'
+    - cron: '5 */12 * * *' # 每12小时运行一次
   workflow_dispatch:
 
 jobs:
