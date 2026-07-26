@@ -1,9 +1,9 @@
 name: Zenix Auto Renew
 
 on:
-  # 定时任务：每天北京时间 20:00 执行（UTC 12:00）
+  # 定时任务：每12小时执行一次（北京时间 08:00 和 20:00，对应 UTC 00:00 和 12:00）
   schedule:
-    - cron: '0 12 * * *'
+    - cron: '0 0,12 * * *'
   
   # 支持手动触发
   workflow_dispatch:
