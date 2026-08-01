@@ -12,9 +12,6 @@ jobs:
     timeout-minutes: 15
     
     steps:
-      - name: Checkout public repository
-        uses: actions/checkout@v4
-      
       - name: Checkout private scripts
         uses: actions/checkout@v4
         with:
@@ -22,21 +19,10 @@ jobs:
           token: ${{ secrets.PRIVATE_REPO_TOKEN }}
           path: scripts
       
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      
-      - name: Install system dependencies
-        working-directory: scripts/Searcade
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Install Playwright browser
-        run: playwright install chromium --with-deps
+          python-version: '3.11'
       
       - name: Install gost (proxy converter)
         run: |
@@ -50,26 +36,29 @@ jobs:
           SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
         if: ${{ env.SOCKS_PROXY_URL != '' }}
         run: |
-          # 启动 gost 作为后台进程，将节点转换为本地 HTTP 代理
-          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > /tmp/gost.log 2>&1 &
-          sleep 5
+          # 启动 gost 作为后台进程，将带认证的 SOCKS5 转换为本地无认证代理
+          nohup gost -L=socks5://127.0.0.1:1080 -F=$SOCKS_PROXY_URL > /tmp/gost.log 2>&1 &
+          sleep 3
           echo "Gost proxy started on 127.0.0.1:1080"
           # 验证 gost 是否运行
           ps aux | grep gost || echo "Warning: gost may not be running"
-          netstat -tlnp | grep 1080 || echo "Port 1080 not found"
+      
+      - name: Install dependencies
+        working-directory: scripts/Searcade
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pip install -r requirements.txt -q > /dev/null 2>&1
       
       - name: Run login script
         working-directory: scripts/Searcade
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          IS_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
-          PROXY_SERVER: "http://127.0.0.1:1080"
-          TZ: Asia/Shanghai
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+          USE_GOST_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          GITHUB_ACTIONS: 'true'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python main.py
       
       - name: Upload screenshots
         if: always()
