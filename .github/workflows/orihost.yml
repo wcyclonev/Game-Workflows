@@ -30,7 +30,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
           pip install -r requirements.txt
-          seleniumbase install chromedriver
+          python -m playwright install chromium
+          python -m camoufox fetch
 
       - name: Install gost (proxy converter)
         run: |
