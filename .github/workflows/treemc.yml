@@ -50,7 +50,7 @@ jobs:
       - name: Run login script
         working-directory: scripts/Treemc
         env:
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_TOKEN_1: ${{ secrets.DISCORD_TOKEN_1 }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
