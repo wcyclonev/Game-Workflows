@@ -2,8 +2,7 @@ name: Zampto Auto Renew
 
 on:
   schedule:
-    # 北京时间中午12点 = UTC 04:00
-    - cron: '0 4 * * *'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
