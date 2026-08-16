@@ -9,6 +9,7 @@ on:
 jobs:
   renew:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Checkout private repo
@@ -21,24 +22,52 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       
-      - name: Install dependencies
+      - name: Install system dependencies
         working-directory: scripts/Weirdhost
-        run: pip install -r requirements.txt -q > /dev/null 2>&1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-utils fonts-noto-cjk
+          pip install -r requirements.txt -q
+      
+      - name: Install gost (proxy converter)
+        run: |
+          wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+          gunzip gost-linux-amd64-2.11.5.gz
+          chmod +x gost-linux-amd64-2.11.5
+          sudo mv gost-linux-amd64-2.11.5 /usr/local/bin/gost
+      
+      - name: Start gost proxy (if proxy configured)
+        env:
+          NOVIXLINK_SOCKS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY }}
+        if: ${{ env.NOVIXLINK_SOCKS_PROXY != '' }}
+        run: |
+          # 启动 gost 作为后台进程，将节点转换为本地 HTTP 代理
+          nohup gost -L=:1080 -F="$NOVIXLINK_SOCKS_PROXY" > /tmp/gost.log 2>&1 &
+          sleep 5
+          echo "Gost proxy started on 127.0.0.1:1080"
+          # 验证 gost 是否运行
+          ps aux | grep gost || echo "Warning: gost may not be running"
+          netstat -tlnp | grep 1080 || echo "Port 1080 not found"
       
       - name: Run renew script
         working-directory: scripts/Weirdhost
         env:
-          HEADLESS: 'true'
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python main.py
+          IS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY != '' && 'true' || 'false' }}
+          PROXY_SERVER: "http://127.0.0.1:1080"
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
       
       - name: Upload response JSON files
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: response-json
+          name: response-json-${{ github.run_number }}
           path: scripts/Weirdhost/response_*.json
           retention-days: 7
+          if-no-files-found: warn
