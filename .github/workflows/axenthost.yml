@@ -1,9 +1,9 @@
 name: Axenthost Auto Claim
 
 on:
-#  schedule:
+  schedule:
     # 每小时的第5分钟运行（UTC时间）
-#    - cron: '5 * * * *'
+   - cron: '5 * * * *'
   workflow_dispatch:  # 支持手动触发
 
 jobs:
@@ -41,11 +41,11 @@ jobs:
 
       - name: Start gost proxy (if proxy configured)
         env:
-          LEGEND_JP_SOCKS_PROXY: ${{ secrets.LEGEND_JP_SOCKS_PROXY }}
-        if: ${{ env.LEGEND_JP_SOCKS_PROXY != '' }}
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+        if: ${{ env.SOCKS_PROXY_URL != '' }}
         run: |
           # 启动 gost 作为后台进程，将节点转换为本地 HTTP 代理
-          nohup gost -L=:1080 -F="$LEGEND_JP_SOCKS_PROXY" > /tmp/gost.log 2>&1 &
+          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > /tmp/gost.log 2>&1 &
           sleep 5
           echo "Gost proxy started on 127.0.0.1:1080"
           # 验证 gost 是否运行
@@ -58,7 +58,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          IS_PROXY: ${{ secrets.LEGEND_JP_SOCKS_PROXY != '' && 'true' || 'false' }}
+          IS_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
           PROXY_SERVER: "http://127.0.0.1:1080"
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -71,16 +71,5 @@ jobs:
         with:
           name: server-status-${{ github.run_number }}
           path: scripts/Axenthost/*.json
-          retention-days: 7
-          if-no-files-found: ignore
-      
-      - name: Upload screenshots (if any)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-${{ github.run_number }}
-          path: |
-            scripts/Axenthost/screenshots/*.png
-            scripts/Axenthost/screenshots/*.html
           retention-days: 7
           if-no-files-found: ignore
