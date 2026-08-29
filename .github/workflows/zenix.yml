@@ -1,0 +1,79 @@
+name: Zenix Auto Renew
+
+on:
+  # 定时任务：每12小时执行一次
+  schedule:
+    - cron: '5 */12 * * *'
+  
+  # 支持手动触发
+  workflow_dispatch:
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout private repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+      
+      - name: Setup Python environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      
+      - name: Install system dependencies
+        working-directory: scripts/Zenix
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb x11-utils xdotool scrot fonts-noto-cjk jq wget
+          pip install -r requirements.txt
+          seleniumbase install chromedriver
+      
+      - name: Install gost (proxy converter)
+        run: |
+          wget -q https://github.com/ginuerzh/gost/releases/download/v2.11.5/gost-linux-amd64-2.11.5.gz
+          gunzip gost-linux-amd64-2.11.5.gz
+          chmod +x gost-linux-amd64-2.11.5
+          sudo mv gost-linux-amd64-2.11.5 /usr/local/bin/gost
+      
+      - name: Start gost proxy (if proxy configured)
+        env:
+          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+        if: ${{ env.SOCKS_PROXY_URL != '' }}
+        run: |
+          # 启动 gost 作为后台进程，将节点转换为本地 HTTP 代理
+          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > /tmp/gost.log 2>&1 &
+          sleep 5
+          echo "Gost proxy started on 127.0.0.1:1080"
+          # 验证 gost 是否运行
+          ps aux | grep gost || echo "Warning: gost may not be running"
+          netstat -tlnp | grep 1080 || echo "Port 1080 not found"
+      
+      - name: Run renewal script
+        working-directory: scripts/Zenix
+        env:
+          ZENIX_USERNAME: ${{ secrets.ZENIX_USERNAME }}
+          ZENIX_PASSWORD: ${{ secrets.ZENIX_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          IS_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          PROXY_SERVER: "http://127.0.0.1:1080"
+          HEADLESS: "false"
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" python main.py
+      
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots-${{ github.run_number }}
+          path: scripts/Zenix/screenshots/
+          retention-days: 7
+          if-no-files-found: warn
