@@ -54,7 +54,7 @@ jobs:
         working-directory: scripts/Bothosting-New
         env:
           SESSION_TOKEN: ${{ secrets.SESSION_TOKEN }}
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_TOKEN_1: ${{ secrets.DISCORD_TOKEN_1 }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           IS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY != '' && 'true' || 'false' }}
