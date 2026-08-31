@@ -41,10 +41,10 @@ jobs:
 
       - name: Start gost proxy (if proxy configured)
         env:
-          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
-        if: ${{ env.SOCKS_PROXY_URL != '' }}
+          NOVIXLINK_SOCKS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY }}
+        if: ${{ env.NOVIXLINK_SOCKS_PROXY != '' }}
         run: |
-          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > /tmp/gost.log 2>&1 &
+          nohup gost -L=:1080 -F="$NOVIXLINK_SOCKS_PROXY" > /tmp/gost.log 2>&1 &
           sleep 5
           echo "Gost proxy started on 127.0.0.1:1080"
           ps aux | grep gost || echo "Warning: gost may not be running"
@@ -57,7 +57,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          IS_PROXY: ${{ secrets.SOCKS_PROXY_URL != '' && 'true' || 'false' }}
+          IS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY != '' && 'true' || 'false' }}
           PROXY_SERVER: "http://127.0.0.1:1080"
           HEADLESS: "true"
           GITHUB_RUN_ID: ${{ github.run_id }}
