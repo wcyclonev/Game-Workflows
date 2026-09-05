@@ -59,10 +59,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python main.py
 
-      - name: Upload screenshots
+      - name: Upload screenshots and debug files
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
+          name: debug-files-${{ github.run_number }}
           path: scripts/Optiklink/screenshots/
           retention-days: 7
+          if-no-files-found: warn
