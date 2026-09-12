@@ -1,0 +1,52 @@
+name: SkyCastle Auto Renew
+
+on:
+  schedule:
+    # 每天中午12点运行 (UTC+8 = UTC 04:00)
+    - cron: '0 4 * * *'
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          path: scripts
+
+      - name: Set up WARP
+        uses: fscarmen/warp-on-actions@v1.4
+        with:
+          stack: dual
+          mode: client
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        working-directory: scripts/Skycastle
+        run: pip install -r requirements.txt
+
+      - name: Run renew script
+        env:
+          SKYCASTLE_API_KEY: ${{ secrets.SKYCASTLE_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        working-directory: scripts/Skycastle
+        run: python main.py
+
+      - name: Upload JSON artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: skycastle-api-responses
+          path: scripts/Skycastle/*.json
+          retention-days: 7
+          if-no-files-found: ignore
