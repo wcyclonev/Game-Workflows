@@ -2,6 +2,6 @@
 
 | Item | Value |
 |------|-------|
-| Run Time | 2026-09-13 15:53:40 |
-| Trigger | schedule |
+| Run Time | 2026-09-13 20:54:40 |
+| Trigger | workflow_dispatch |
 | Status | ✅ Success |
