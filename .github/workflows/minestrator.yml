@@ -26,24 +26,24 @@ jobs:
       
       - name: Setup Gost Proxy
         env:
-          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+          NOVIXLINK_SOCKS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY }}
         run: |
           # 如果没有环境变量，从 main.py 中读取默认代理
-          if [ -z "$SOCKS_PROXY_URL" ]; then
+          if [ -z "$NOVIXLINK_SOCKS_PROXY" ]; then
             echo "ℹ️ 未配置环境变量，尝试读取代码中的默认代理..."
             cd scripts/Minestrator
-            DEFAULT_PROXY=$(grep 'SOCKS_PROXY_URL.*or' main.py | sed 's/.*or "\([^"]*\)".*/\1/')
+            DEFAULT_PROXY=$(grep 'NOVIXLINK_SOCKS_PROXY.*or' main.py | sed 's/.*or "\([^"]*\)".*/\1/')
             
             if [ -n "$DEFAULT_PROXY" ] && [ "$DEFAULT_PROXY" != "" ]; then
-              SOCKS_PROXY_URL="$DEFAULT_PROXY"
-              echo "✅ 使用代码中的默认代理: ${SOCKS_PROXY_URL%%:*}://***"
+              NOVIXLINK_SOCKS_PROXY="$DEFAULT_PROXY"
+              echo "✅ 使用代码中的默认代理: ${NOVIXLINK_SOCKS_PROXY%%:*}://***"
               cd ../..
             else
               echo "⚠️ 未找到默认代理，跳过 Gost 设置"
               exit 0
             fi
           else
-            echo "🌐 使用环境变量代理: ${SOCKS_PROXY_URL%%:*}://***"
+            echo "🌐 使用环境变量代理: ${NOVIXLINK_SOCKS_PROXY%%:*}://***"
           fi
           
           # 安装 Gost
@@ -53,7 +53,7 @@ jobs:
           sudo chmod +x /usr/local/bin/gost
           
           # 启动 Gost
-          nohup gost -L=:1080 -F="$SOCKS_PROXY_URL" > gost.log 2>&1 &
+          nohup gost -L=:1080 -F="$NOVIXLINK_SOCKS_PROXY" > gost.log 2>&1 &
           sleep 5
           
           # 验证
@@ -87,7 +87,7 @@ jobs:
           # GitHub Secrets
           USERNAME: ${{ secrets.MINESTRATOR_USERNAME }}
           PASSWORD: ${{ secrets.MINESTRATOR_PASSWORD }}
-          SOCKS_PROXY_URL: ${{ secrets.SOCKS_PROXY_URL }}
+          NOVIXLINK_SOCKS_PROXY: ${{ secrets.NOVIXLINK_SOCKS_PROXY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
