@@ -2,7 +2,6 @@ name: MWS Auto Renew
 
 on:
   schedule:
-    # 北京时间每周五 20:00 = UTC 周五 12:00
     - cron: '0 12 * * *'
   workflow_dispatch:
 
