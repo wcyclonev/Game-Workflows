@@ -2,8 +2,7 @@ name: SkyCastle Auto Renew
 
 on:
   schedule:
-    # 每天中午12点运行 (UTC+8 = UTC 04:00)
-    - cron: '0 4 * * *'
+    - cron: '5 0 * * *'
   workflow_dispatch:  # 手动触发
 
 jobs:
